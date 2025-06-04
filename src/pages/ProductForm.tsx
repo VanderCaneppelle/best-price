@@ -11,7 +11,7 @@ import {
     Divider,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { addProductFromForm } from '../services/productCache';
+import { createProduct } from '../services/productApi';
 
 const categories = [
     { id: 1, name: 'Eletrônicos' },
@@ -53,7 +53,12 @@ const ProductForm = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        addProductFromForm(formData);
+        await createProduct({
+            nome: formData.name,
+            descricao: formData.description,
+            categoria_id: formData.categoryId,
+            imagem_url: formData.image,
+        });
         navigate('/');
     };
 

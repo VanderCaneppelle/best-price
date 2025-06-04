@@ -19,6 +19,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { getAllProducts, saveProduct } from '../services/productCache';
 import { fetchPriceFromBackend } from '../services/priceService';
 import { Product } from '../types';
+import { getProducts } from '../services/productApi';
 
 const ProductList = () => {
     const { categoriaId } = useParams();
@@ -27,9 +28,14 @@ const ProductList = () => {
     const [updatingId, setUpdatingId] = useState<number | null>(null);
 
     const fetchProducts = async () => {
-        const all = getAllProducts();
-        const filtered = categoriaId ? all.filter(p => p.categoryId === Number(categoriaId)) : all;
-        setProducts(filtered);
+        setLoading(true);
+        try {
+            const all = await getProducts();
+            const filtered = categoriaId ? all.filter((p: any) => p.categoria_id === categoriaId) : all;
+            setProducts(filtered);
+        } catch (e) {
+            setProducts([]);
+        }
         setLoading(false);
     };
 
@@ -55,10 +61,7 @@ const ProductList = () => {
     };
 
     useEffect(() => {
-        const all = getAllProducts();
-        const filtered = categoriaId ? all.filter(p => p.categoryId === Number(categoriaId)) : all;
-        setProducts(filtered);
-        setLoading(false);
+        fetchProducts();
     }, [categoriaId]);
 
     if (loading) {

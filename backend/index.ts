@@ -1,12 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import { ScraperManager } from './ScraperManager';
+import productRoutes from './routes/productRoutes';
 
 const app = express();
 const port = 4000;
 
 app.use(cors());
 app.use(express.json());
+
+// Rotas de produtos
+app.use('/api/products', productRoutes);
 
 const scraperManager = new ScraperManager();
 
