@@ -1,14 +1,11 @@
-import { ScraperManager } from './ScraperManager';
 import { MagazineLuizaScraper } from './scrapers/MagazineLuizaScraper';
 import { Product } from '../types';
 
 export class PriceService {
-    private scraperManager: ScraperManager;
-
     constructor() {
-        this.scraperManager = new ScraperManager();
         // Adiciona o scraper da Magazine Luiza
-        this.scraperManager.addScraper(new MagazineLuizaScraper());
+        // this.scraperManager = new ScraperManager();
+        // this.scraperManager.addScraper(new MagazineLuizaScraper());
     }
 
     /**
@@ -19,19 +16,19 @@ export class PriceService {
     async updateProductPrices(product: Product): Promise<Product> {
         try {
             const urls = [
-                product.links.mercadoLivre,
-                product.links.amazon,
-                product.links.magazineLuiza,
-            ];
+                product.links?.mercadoLivre,
+                product.links?.amazon,
+                product.links?.magazineLuiza,
+            ].filter(Boolean) as string[];
 
-            const results = await this.scraperManager.scrapeMultiplePrices(urls);
+            // const results = await this.scraperManager.scrapeMultiplePrices(urls);
 
             return {
                 ...product,
                 prices: {
-                    mercadoLivre: results[0].price,
-                    amazon: results[1].price,
-                    magazineLuiza: results[2].price,
+                    mercadoLivre: 0,
+                    amazon: 0,
+                    magazineLuiza: 0,
                 },
             };
         } catch (error) {

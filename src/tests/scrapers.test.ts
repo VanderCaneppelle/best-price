@@ -2,16 +2,12 @@ import { MercadoLivreScraper } from '../services/scrapers/MercadoLivreScraper.js
 import { AmazonScraper } from '../services/scrapers/AmazonScraper.js';
 import { ShopeeScraper } from '../services/scrapers/ShopeeScraper.js';
 import { MagazineLuizaScraper } from '../services/scrapers/MagazineLuizaScraper.js';
-import { ScraperManager } from '../services/ScraperManager.js';
 
 // Função para adicionar delay entre as requisições
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function testScraper() {
     console.log('Iniciando testes dos scrapers...\n');
-
-    const scraperManager = new ScraperManager();
-    scraperManager.addScraper(new MagazineLuizaScraper());
 
     // URLs de teste (produtos reais)
     const testUrls = {
@@ -24,28 +20,33 @@ async function testScraper() {
     try {
         // Teste individual de cada scraper
         console.log('Testando Mercado Livre...');
-        const mlResult = await scraperManager.scrapePrice(testUrls.mercadoLivre);
+        const mlResult = await new MercadoLivreScraper().scrapePrice(testUrls.mercadoLivre);
         console.log('Resultado:', mlResult, '\n');
         await delay(2000); // Espera 2 segundos
 
         console.log('Testando Amazon...');
-        const amazonResult = await scraperManager.scrapePrice(testUrls.amazon);
+        const amazonResult = await new AmazonScraper().scrapePrice(testUrls.amazon);
         console.log('Resultado:', amazonResult, '\n');
         await delay(2000);
 
         console.log('Testando Shopee...');
-        const shopeeResult = await scraperManager.scrapePrice(testUrls.shopee);
+        const shopeeResult = await new ShopeeScraper().scrapePrice(testUrls.shopee);
         console.log('Resultado:', shopeeResult, '\n');
         await delay(2000);
 
         console.log('Testando Magazine Luiza...');
-        const mlResult2 = await scraperManager.scrapePrice(testUrls.magazineLuiza);
+        const mlResult2 = await new MagazineLuizaScraper().scrapePrice(testUrls.magazineLuiza);
         console.log('Resultado:', mlResult2, '\n');
         await delay(2000);
 
         // Teste de múltiplos preços
         console.log('Testando múltiplos preços...');
-        const allResults = await scraperManager.scrapeMultiplePrices(Object.values(testUrls));
+        const allResults = await Promise.all([
+            new MercadoLivreScraper().scrapePrice(testUrls.mercadoLivre),
+            new AmazonScraper().scrapePrice(testUrls.amazon),
+            new ShopeeScraper().scrapePrice(testUrls.shopee),
+            new MagazineLuizaScraper().scrapePrice(testUrls.magazineLuiza)
+        ]);
         console.log('Resultados:', allResults);
     } catch (error) {
         console.error('Erro durante os testes:', error);

@@ -16,7 +16,6 @@ import {
     Tooltip,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { getAllProducts, saveProduct } from '../services/productCache';
 import { fetchPriceFromBackend } from '../services/priceService';
 import { Product } from '../types';
 import { getProducts } from '../services/productApi';
@@ -25,13 +24,15 @@ const ProductList = () => {
     const { categoriaId } = useParams();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
-    const [updatingId, setUpdatingId] = useState<number | null>(null);
+    const [updatingId, setUpdatingId] = useState<string | null>(null);
 
     const fetchProducts = async () => {
         setLoading(true);
         try {
             const all = await getProducts();
-            const filtered = categoriaId ? all.filter((p: any) => p.categoria_id === categoriaId) : all;
+            const filtered = categoriaId
+                ? all.filter((p: any) => String(p.categoria_id) === String(categoriaId))
+                : all;
             setProducts(filtered);
         } catch (e) {
             setProducts([]);
@@ -43,7 +44,7 @@ const ProductList = () => {
         setUpdatingId(product.id);
         try {
             const prices: any = {};
-            for (const [market, url] of Object.entries(product.links)) {
+            for (const [market, url] of Object.entries(product.links || {})) {
                 if (url) {
                     const result = await fetchPriceFromBackend(url);
                     console.log(`Resultado do scraping para ${market}:`, result);
@@ -52,7 +53,6 @@ const ProductList = () => {
             }
             const updated = { ...product, prices };
             setProducts(prev => prev.map(p => p.id === product.id ? updated : p));
-            saveProduct(updated);
         } catch (error) {
             console.error('Erro ao atualizar preço:', error);
         } finally {
@@ -111,15 +111,15 @@ const ProductList = () => {
                                 }}
                             >
                                 <TableCell>
-                                    {product.image && (
-                                        <img src={product.image} alt={product.name} style={{ maxWidth: 64, maxHeight: 64, borderRadius: 8 }} />
+                                    {product.imagem_url && (
+                                        <img src={product.imagem_url} alt={product.nome} style={{ maxWidth: 64, maxHeight: 64, borderRadius: 8 }} />
                                     )}
                                 </TableCell>
                                 <TableCell>{product.name}</TableCell>
                                 <TableCell>{product.description}</TableCell>
                                 <TableCell>
                                     <Link
-                                        href={product.links.mercadoLivre}
+                                        href={product.links?.mercadoLivre || '#'}
                                         target="_blank"
                                         sx={{
                                             color: '#fff',
@@ -130,12 +130,12 @@ const ProductList = () => {
                                             },
                                         }}
                                     >
-                                        R$ {product.prices.mercadoLivre.toFixed(2)}
+                                        R$ {(product.prices?.mercadoLivre ?? 0).toFixed(2)}
                                     </Link>
                                 </TableCell>
                                 <TableCell>
                                     <Link
-                                        href={product.links.amazon}
+                                        href={product.links?.amazon || '#'}
                                         target="_blank"
                                         sx={{
                                             color: '#fff',
@@ -146,12 +146,12 @@ const ProductList = () => {
                                             },
                                         }}
                                     >
-                                        R$ {product.prices.amazon.toFixed(2)}
+                                        R$ {(product.prices?.amazon ?? 0).toFixed(2)}
                                     </Link>
                                 </TableCell>
                                 <TableCell>
                                     <Link
-                                        href={product.links.magazineLuiza}
+                                        href={product.links?.magazineLuiza || '#'}
                                         target="_blank"
                                         sx={{
                                             color: '#fff',
@@ -162,7 +162,7 @@ const ProductList = () => {
                                             },
                                         }}
                                     >
-                                        R$ {(product.prices.magazineLuiza ?? 0).toFixed(2)}
+                                        R$ {(product.prices?.magazineLuiza ?? 0).toFixed(2)}
                                     </Link>
                                 </TableCell>
                                 <TableCell>

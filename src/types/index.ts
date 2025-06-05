@@ -5,21 +5,25 @@ export interface Category {
 }
 
 export interface Product {
-    id: number;
-    name: string;
-    description: string;
-    categoryId: number;
-    prices: {
-        mercadoLivre: number;
-        amazon: number;
-        magazineLuiza: number;
+    id: string;
+    nome: string;
+    descricao: string;
+    categoria_id: number;
+    imagem_url?: string;
+    prices?: {
+        mercadoLivre?: number;
+        amazon?: number;
+        magazineLuiza?: number;
     };
-    links: {
-        mercadoLivre: string;
-        amazon: string;
-        magazineLuiza: string;
+    links?: {
+        mercadoLivre?: string;
+        amazon?: string;
+        magazineLuiza?: string;
     };
+    name?: string;
+    description?: string;
     image?: string;
+    categoryId?: number;
 }
 
 export interface ProductFormData {

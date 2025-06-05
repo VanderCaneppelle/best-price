@@ -7,6 +7,7 @@ export class MercadoLivreScraper extends BaseScraper {
     }
 
     isValidUrl(url: string): boolean {
+        console.log('[MercadoLivreScraper] isValidUrl chamada com:', url);
         return url.includes('mercadolivre.com.br') || url.includes('mercadolibre.com.br');
     }
 
@@ -23,13 +24,15 @@ export class MercadoLivreScraper extends BaseScraper {
                 '.price-tag',
             ];
 
-            let priceText = '';
-            for (const selector of priceSelectors) {
-                const element = $(selector).first();
-                if (element.length > 0) {
-                    priceText = element.text();
-                    break;
-                }
+            // Novo seletor para páginas de lista
+            const listPriceSelector = '.andes-money-amount__fraction';
+
+            // Tenta pegar o preço promocional pelo meta tag
+            let priceText = $('meta[itemprop="price"]').attr('content');
+
+            // Se não achar, tenta pegar o preço principal visível
+            if (!priceText) {
+                priceText = $('.andes-money-amount__fraction').first().text();
             }
 
             if (!priceText) {

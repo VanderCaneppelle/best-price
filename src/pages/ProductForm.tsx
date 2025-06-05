@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Container,
     Paper,
@@ -12,13 +12,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { createProduct } from '../services/productApi';
-
-const categories = [
-    { id: 1, name: 'Eletrônicos' },
-    { id: 2, name: 'Moda' },
-    { id: 3, name: 'Casa' },
-    { id: 4, name: 'Esportes' },
-];
+import { getCategories } from '../services/categoryApi';
 
 const ProductForm = () => {
     const navigate = useNavigate();
@@ -31,6 +25,11 @@ const ProductForm = () => {
         magazineLuizaLink: '',
         image: '',
     });
+    const [categories, setCategories] = useState<{ id: number, nome: string }[]>([]);
+
+    useEffect(() => {
+        getCategories().then(setCategories);
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -58,6 +57,11 @@ const ProductForm = () => {
             descricao: formData.description,
             categoria_id: formData.categoryId,
             imagem_url: formData.image,
+            links: {
+                mercado_livre: formData.mercadoLivreLink,
+                amazon: formData.amazonLink,
+                magalu: formData.magazineLuizaLink,
+            },
         });
         navigate('/');
     };
@@ -137,7 +141,7 @@ const ProductForm = () => {
                             >
                                 {categories.map((category) => (
                                     <MenuItem key={category.id} value={category.id}>
-                                        {category.name}
+                                        {category.nome}
                                     </MenuItem>
                                 ))}
                             </TextField>

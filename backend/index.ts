@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { ScraperManager } from './ScraperManager';
 import productRoutes from './routes/productRoutes';
+import categoryRoutes from './routes/categoryRoutes';
 
 const app = express();
 const port = 4000;
@@ -11,6 +13,9 @@ app.use(express.json());
 
 // Rotas de produtos
 app.use('/api/products', productRoutes);
+
+// Rotas de categorias
+app.use('/api/categories', categoryRoutes);
 
 const scraperManager = new ScraperManager();
 

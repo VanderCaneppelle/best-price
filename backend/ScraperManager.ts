@@ -12,6 +12,7 @@ export class ScraperManager {
             new AmazonScraper(),
             new MagazineLuizaScraper(),
         ];
+        console.log('[ScraperManager] Scrapers registrados:', this.scrapers.map(s => s.constructor.name));
     }
 
     addScraper(scraper: IScraper): void {

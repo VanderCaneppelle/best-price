@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Drawer,
     List,
@@ -11,21 +11,28 @@ import {
     Typography,
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import CategoryIcon from '@mui/icons-material/Category';
 import AllInboxIcon from '@mui/icons-material/AllInbox';
+import SportsSoccerIcon from '@mui/icons-material/SportsSoccer';
+import HomeIcon from '@mui/icons-material/Home';
+import { getCategories } from '../services/categoryApi';
 
 const drawerWidth = 240;
 
-const categories = [
-    { id: 1, name: 'Eletrônicos', icon: '📱' },
-    { id: 2, name: 'Moda', icon: '👕' },
-    { id: 3, name: 'Casa', icon: '🏠' },
-    { id: 4, name: 'Esportes', icon: '⚽' },
-];
+const iconMap: Record<string, React.ReactNode> = {
+    'Eletrônicos': <HomeIcon />,
+    'Moda': <span role="img" aria-label="Moda">👕</span>,
+    'Casa': <span role="img" aria-label="Casa">🏠</span>,
+    'Esportes': <SportsSoccerIcon />,
+};
 
 const Sidebar = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [categories, setCategories] = useState<{ id: number, nome: string }[]>([]);
+
+    useEffect(() => {
+        getCategories().then(setCategories);
+    }, []);
 
     return (
         <Drawer
@@ -82,9 +89,9 @@ const Sidebar = () => {
                             }}
                         >
                             <ListItemIcon>
-                                <Typography variant="h6">{category.icon}</Typography>
+                                {iconMap[category.nome] || <AllInboxIcon />}
                             </ListItemIcon>
-                            <ListItemText primary={category.name} />
+                            <ListItemText primary={category.nome} />
                         </ListItemButton>
                     ))}
                 </List>
