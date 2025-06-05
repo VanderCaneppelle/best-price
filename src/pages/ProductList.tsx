@@ -14,17 +14,21 @@ import {
     Box,
     IconButton,
     Tooltip,
+    Button,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { fetchPriceFromBackend } from '../services/priceService';
 import { Product } from '../types';
 import { getProducts } from '../services/productApi';
+import axios from 'axios';
 
 const ProductList = () => {
     const { categoriaId } = useParams();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [savingHistory, setSavingHistory] = useState(false);
+    const [historyMsg, setHistoryMsg] = useState<string | null>(null);
 
     const fetchProducts = async () => {
         setLoading(true);
@@ -43,20 +47,25 @@ const ProductList = () => {
     const handleUpdatePrice = async (product: Product) => {
         setUpdatingId(product.id);
         try {
-            const prices: any = {};
-            for (const [market, url] of Object.entries(product.links || {})) {
-                if (url) {
-                    const result = await fetchPriceFromBackend(url);
-                    console.log(`Resultado do scraping para ${market}:`, result);
-                    prices[market] = result.price;
-                }
-            }
-            const updated = { ...product, prices };
-            setProducts(prev => prev.map(p => p.id === product.id ? updated : p));
+            const { data: updated } = await axios.put(`http://localhost:4000/api/products/${product.id}/update-prices`);
+            setProducts(prev => prev.map(p => p.id === product.id ? { ...p, ...updated } : p));
         } catch (error) {
             console.error('Erro ao atualizar preço:', error);
         } finally {
             setUpdatingId(null);
+        }
+    };
+
+    const handleSavePriceHistory = async () => {
+        setSavingHistory(true);
+        setHistoryMsg(null);
+        try {
+            const { data } = await axios.post('http://localhost:4000/api/products/price-history/snapshot');
+            setHistoryMsg(data.message || 'Histórico salvo!');
+        } catch (error) {
+            setHistoryMsg('Erro ao salvar histórico');
+        } finally {
+            setSavingHistory(false);
         }
     };
 
@@ -77,6 +86,20 @@ const ProductList = () => {
                 <Typography variant="body1" color="text.secondary">
                     Compare os preços dos produtos nos principais marketplaces
                 </Typography>
+                <Button
+                    variant="contained"
+                    color="secondary"
+                    sx={{ mt: 2, mb: 1 }}
+                    onClick={handleSavePriceHistory}
+                    disabled={savingHistory}
+                >
+                    Salvar histórico de preços (snapshot)
+                </Button>
+                {historyMsg && (
+                    <Typography variant="body2" color={historyMsg.startsWith('Erro') ? 'error' : 'success.main'} sx={{ mt: 1 }}>
+                        {historyMsg}
+                    </Typography>
+                )}
             </Box>
             <TableContainer
                 component={Paper}
@@ -97,6 +120,7 @@ const ProductList = () => {
                             <TableCell sx={{ fontWeight: 600 }}>Mercado Livre</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Amazon</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Magazine Luiza</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Shopee</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Ações</TableCell>
                         </TableRow>
                     </TableHead>
@@ -115,55 +139,35 @@ const ProductList = () => {
                                         <img src={product.imagem_url} alt={product.nome} style={{ maxWidth: 64, maxHeight: 64, borderRadius: 8 }} />
                                     )}
                                 </TableCell>
-                                <TableCell>{product.name}</TableCell>
-                                <TableCell>{product.description}</TableCell>
+                                <TableCell>{product.nome}</TableCell>
+                                <TableCell>{product.descricao}</TableCell>
                                 <TableCell>
-                                    <Link
-                                        href={product.links?.mercadoLivre || '#'}
-                                        target="_blank"
-                                        sx={{
-                                            color: '#fff',
-                                            fontWeight: 700,
-                                            textDecoration: 'none',
-                                            '&:hover': {
-                                                textDecoration: 'underline',
-                                            },
-                                        }}
-                                    >
-                                        R$ {(product.prices?.mercadoLivre ?? 0).toFixed(2)}
-                                    </Link>
+                                    {product.links?.mercadoLivre ? (
+                                        <Link href={product.links.mercadoLivre} target="_blank" sx={{ color: '#fff', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                            {product.preco_mercado_livre !== undefined && product.preco_mercado_livre !== null ? `R$ ${product.preco_mercado_livre.toFixed(2)}` : '—'}
+                                        </Link>
+                                    ) : '—'}
                                 </TableCell>
                                 <TableCell>
-                                    <Link
-                                        href={product.links?.amazon || '#'}
-                                        target="_blank"
-                                        sx={{
-                                            color: '#fff',
-                                            fontWeight: 700,
-                                            textDecoration: 'none',
-                                            '&:hover': {
-                                                textDecoration: 'underline',
-                                            },
-                                        }}
-                                    >
-                                        R$ {(product.prices?.amazon ?? 0).toFixed(2)}
-                                    </Link>
+                                    {product.links?.amazon ? (
+                                        <Link href={product.links.amazon} target="_blank" sx={{ color: '#fff', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                            {product.preco_amazon !== undefined && product.preco_amazon !== null ? `R$ ${product.preco_amazon.toFixed(2)}` : '—'}
+                                        </Link>
+                                    ) : '—'}
                                 </TableCell>
                                 <TableCell>
-                                    <Link
-                                        href={product.links?.magazineLuiza || '#'}
-                                        target="_blank"
-                                        sx={{
-                                            color: '#fff',
-                                            fontWeight: 700,
-                                            textDecoration: 'none',
-                                            '&:hover': {
-                                                textDecoration: 'underline',
-                                            },
-                                        }}
-                                    >
-                                        R$ {(product.prices?.magazineLuiza ?? 0).toFixed(2)}
-                                    </Link>
+                                    {product.links?.magazineLuiza ? (
+                                        <Link href={product.links.magazineLuiza} target="_blank" sx={{ color: '#fff', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                            {product.preco_magalu !== undefined && product.preco_magalu !== null ? `R$ ${product.preco_magalu.toFixed(2)}` : '—'}
+                                        </Link>
+                                    ) : '—'}
+                                </TableCell>
+                                <TableCell>
+                                    {product.links?.shopee ? (
+                                        <Link href={product.links.shopee} target="_blank" sx={{ color: '#fff', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                            {product.preco_shopee !== undefined && product.preco_shopee !== null ? `R$ ${product.preco_shopee.toFixed(2)}` : '—'}
+                                        </Link>
+                                    ) : '—'}
                                 </TableCell>
                                 <TableCell>
                                     <Tooltip title="Atualizar preços">

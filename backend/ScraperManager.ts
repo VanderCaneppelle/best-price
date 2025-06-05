@@ -39,4 +39,24 @@ export class ScraperManager {
     async scrapeMultiplePrices(urls: string[]): Promise<ScrapingResult[]> {
         return Promise.all(urls.map(url => this.scrapePrice(url)));
     }
+
+    /**
+     * Roda todos os scrapers para os links informados e retorna um objeto com os preços encontrados.
+     * @param links objeto { mercadoLivre, amazon, magazineLuiza, shopee }
+     */
+    async scrapeAllMarkets(links: Record<string, string>): Promise<Record<string, number | null>> {
+        const results: Record<string, number | null> = {
+            mercadoLivre: null,
+            amazon: null,
+            magazineLuiza: null,
+            shopee: null,
+        };
+        for (const [market, url] of Object.entries(links)) {
+            if (url) {
+                const result = await this.scrapePrice(url);
+                results[market] = result.price || null;
+            }
+        }
+        return results;
+    }
 } 

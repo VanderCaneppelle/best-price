@@ -19,11 +19,16 @@ export interface Product {
         mercadoLivre?: string;
         amazon?: string;
         magazineLuiza?: string;
+        shopee?: string;
     };
     name?: string;
     description?: string;
     image?: string;
     categoryId?: number;
+    preco_mercado_livre?: number;
+    preco_amazon?: number;
+    preco_magalu?: number;
+    preco_shopee?: number;
 }
 
 export interface ProductFormData {
