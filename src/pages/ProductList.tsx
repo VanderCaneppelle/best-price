@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
     Container,
     Table,
@@ -24,6 +24,7 @@ import axios from 'axios';
 
 const ProductList = () => {
     const { categoriaId } = useParams();
+    const navigate = useNavigate();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -131,8 +132,10 @@ const ProductList = () => {
                                 sx={{
                                     '&:hover': {
                                         backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                        cursor: 'pointer',
                                     },
                                 }}
+                                onClick={() => navigate(`/produto/${product.id}`)}
                             >
                                 <TableCell>
                                     {product.imagem_url && (
@@ -169,7 +172,7 @@ const ProductList = () => {
                                         </Link>
                                     ) : '—'}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell onClick={e => e.stopPropagation()}>
                                     <Tooltip title="Atualizar preços">
                                         <IconButton
                                             onClick={() => handleUpdatePrice(product)}

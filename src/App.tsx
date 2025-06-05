@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import ProductList from './pages/ProductList';
 import ProductRequest from './pages/ProductRequest';
 import ProductForm from './pages/ProductForm';
+import ProductDetail from './pages/ProductDetail';
 
 const theme = createTheme({
     palette: {
@@ -64,6 +65,7 @@ const App = () => {
                             <Route path="/categoria/:categoriaId" element={<ProductList />} />
                             <Route path="/acompanhar" element={<ProductRequest />} />
                             <Route path="/produtos/novo" element={<ProductForm />} />
+                            <Route path="/produto/:id" element={<ProductDetail />} />
                         </Routes>
                     </Box>
                 </Box>

@@ -167,4 +167,19 @@ export async function createPriceHistorySnapshot(req: Request, res: Response) {
         return res.status(400).json({ error: 'Nenhum preço encontrado para salvar no histórico.' });
     }
     res.json({ message: 'Histórico de preços salvo/atualizado com sucesso', inserts, updates });
+}
+
+// Buscar histórico de preços dos últimos X dias para um produto
+export async function getProductPriceHistory(req: Request, res: Response) {
+    const { id } = req.params;
+    const days = parseInt(req.query.days as string) || 90;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+        .from('price_history')
+        .select('*')
+        .eq('product_id', id)
+        .gte('checked_at', since)
+        .order('checked_at', { ascending: true });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 } 
