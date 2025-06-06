@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-    Container, Typography, Box, Paper, Link, Button, CircularProgress, Table, TableBody, TableCell, TableRow, Chip, Stack
+    Container, Typography, Box, Paper, Link, Button, CircularProgress, Table, TableBody, TableCell, TableRow, Chip, Stack, TableContainer, TableHead
 } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import {
@@ -36,22 +36,38 @@ const ProductDetail = () => {
     const [product, setProduct] = useState<any>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [linkPrices, setLinkPrices] = useState<Record<string, Record<string, number>>>({});
+    const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+    // Função para buscar dados do produto e histórico
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const { data: prod } = await axios.get(`http://localhost:4000/api/products/${id}`);
+            setProduct(prod);
+            const { data: hist } = await axios.get(`http://localhost:4000/api/products/${id}/price-history?days=90`);
+            setHistory(hist);
+        } catch (e) {
+            setProduct(null);
+        }
+        setLoading(false);
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const { data: prod } = await axios.get(`http://localhost:4000/api/products/${id}`);
-                setProduct(prod);
-                const { data: hist } = await axios.get(`http://localhost:4000/api/products/${id}/price-history?days=90`);
-                setHistory(hist);
-            } catch (e) {
-                setProduct(null);
-            }
-            setLoading(false);
-        };
         fetchData();
     }, [id]);
+
+    const handleUpdatePrice = async (product: any) => {
+        setUpdatingId(product.id);
+        try {
+            await axios.post(`http://localhost:4000/api/products/${product.id}/update-prices`);
+            await fetchData();
+        } catch (e) {
+            console.error("Erro ao atualizar preços:", e);
+        } finally {
+            setUpdatingId(null);
+        }
+    };
 
     if (loading) {
         return <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh"><CircularProgress /></Box>;
@@ -80,6 +96,11 @@ const ProductDetail = () => {
         labels: dates,
         datasets,
     };
+
+    // Calcular o total de lojas com preço válido
+    const totalLojas = Object.values(product.links || {})
+        .flat()
+        .filter(l => (l as { price?: number | null })?.price && (l as { price?: number | null })?.price! > 0).length;
 
     return (
         <Container sx={{ py: 4, maxWidth: '900px' }}>
@@ -122,40 +143,67 @@ const ProductDetail = () => {
                         <Typography variant="h4" gutterBottom fontWeight={700}>{product.nome}</Typography>
                         <Typography variant="body1" color="grey.300" gutterBottom>{product.descricao}</Typography>
                         <Box mt={2}>
-                            <Typography variant="subtitle1" fontWeight={600} mb={1}>Links:</Typography>
-                            <Stack direction="row" spacing={2} flexWrap="wrap">
-                                {product.links && Object.entries(product.links).map(([mkt, url]) => url ? (
-                                    <Link
-                                        key={mkt}
-                                        href={url as string}
-                                        target="_blank"
-                                        rel="noopener"
-                                        underline="none"
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 1,
-                                            bgcolor: '#fff',
-                                            color: MARKETPLACES.find(m => m.key === mkt)?.color || '#333',
-                                            px: 2,
-                                            py: 1,
-                                            borderRadius: 2,
-                                            fontWeight: 600,
-                                            fontSize: 16,
-                                            boxShadow: 1,
-                                            transition: '0.2s',
-                                            '&:hover': {
-                                                bgcolor: MARKETPLACES.find(m => m.key === mkt)?.color || '#eee',
-                                                color: '#222',
-                                                textDecoration: 'none',
-                                            },
-                                        }}
-                                    >
-                                        {MARKETPLACES.find(m => m.key === mkt)?.icon}
-                                        {MARKETPLACES.find(m => m.key === mkt)?.label || mkt}
-                                    </Link>
-                                ) : null)}
-                            </Stack>
+                            <Typography variant="h6" fontWeight={700} mb={2}>{`Disponível em ${totalLojas} lojas`}</Typography>
+                            <TableContainer component={Paper} sx={{ bgcolor: '#181818', borderRadius: 3, boxShadow: 3, mb: 4 }}>
+                                <Table size="small" sx={{ minWidth: 400 }}>
+                                    <TableHead>
+                                        <TableRow sx={{ background: '#111', height: 36 }}>
+                                            <TableCell sx={{ color: '#fff', fontWeight: 400, fontSize: 16, border: 0 }}>Loja</TableCell>
+                                            <TableCell sx={{ color: '#fff', fontWeight: 400, fontSize: 16, border: 0 }}>À Vista</TableCell>
+                                            <TableCell sx={{ color: '#fff', fontWeight: 400, fontSize: 16, border: 0 }}>Link</TableCell>
+                                            <TableCell sx={{ color: '#fff', fontWeight: 400, fontSize: 16, border: 0 }}>Ações</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {MARKETPLACES.map(mkt => {
+                                            const links = (product.links?.[mkt.key] ?? []) as { url: string, price: number | null }[];
+                                            const validLinks = links.filter((l: { price: number | null }) => l.price && l.price > 0);
+                                            if (!validLinks.length) return null;
+                                            const minPrice = Math.min(...validLinks.map((l: { price: number | null }) => l.price!));
+                                            return validLinks.map((link, idx) => (
+                                                <TableRow key={link.url + idx} sx={{ background: idx % 2 === 0 ? '#181818' : '#222', border: 0 }}>
+                                                    <TableCell sx={{ border: 0, p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        {mkt.icon}
+                                                        <span style={{ fontWeight: 400, fontSize: 16, color: '#fff' }}>{mkt.label}</span>
+                                                    </TableCell>
+                                                    <TableCell sx={{ border: 0, p: 1 }}>
+                                                        <span style={{
+                                                            color: link.price === minPrice && link.price > 0 ? '#4caf50' : '#fff',
+                                                            fontWeight: link.price === minPrice && link.price > 0 ? 600 : 400,
+                                                            fontSize: 16,
+                                                            letterSpacing: 0.2,
+                                                        }}>
+                                                            {link.price && link.price > 0 ? `R$ ${link.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Sem preço'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell sx={{ border: 0, p: 1 }}>
+                                                        <Button
+                                                            variant="contained"
+                                                            color="success"
+                                                            href={link.url}
+                                                            target="_blank"
+                                                            sx={{ fontWeight: 400, borderRadius: 2, fontSize: 15, px: 3, boxShadow: 'none', textTransform: 'none', background: '#222', color: '#bada55', '&:hover': { background: '#333' } }}
+                                                        >
+                                                            Comprar
+                                                        </Button>
+                                                    </TableCell>
+                                                    <TableCell onClick={e => e.stopPropagation()}>
+                                                        <Button
+                                                            variant="outlined"
+                                                            color="primary"
+                                                            onClick={() => handleUpdatePrice(product)}
+                                                            sx={{ ml: 1, fontWeight: 500, borderRadius: 2, fontSize: 15, px: 2, boxShadow: 'none', textTransform: 'none' }}
+                                                            disabled={updatingId === product.id}
+                                                        >
+                                                            Atualizar preços
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ));
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
                         </Box>
                         <Box mt={3}>
                             <Typography variant="subtitle1" fontWeight={600} mb={1}>Preços atuais:</Typography>

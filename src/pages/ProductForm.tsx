@@ -9,10 +9,13 @@ import {
     MenuItem,
     Box,
     Divider,
+    IconButton,
+    FormControl,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { createProduct } from '../services/productApi';
 import { getCategories } from '../services/categoryApi';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const ProductForm = () => {
     const navigate = useNavigate();
@@ -24,8 +27,16 @@ const ProductForm = () => {
         amazonLink: '',
         magazineLuizaLink: '',
         image: '',
+        marca: '',
+        subcategoria: '',
     });
     const [categories, setCategories] = useState<{ id: number, nome: string }[]>([]);
+    const [links, setLinks] = useState<Record<string, string[]>>({
+        mercado_livre: [''],
+        amazon: [''],
+        magalu: [''],
+        shopee: [''],
+    });
 
     useEffect(() => {
         getCategories().then(setCategories);
@@ -50,6 +61,27 @@ const ProductForm = () => {
         }
     };
 
+    const handleLinkChange = (marketplace: string, idx: number, value: string) => {
+        setLinks((prev: Record<string, string[]>) => ({
+            ...prev,
+            [marketplace]: prev[marketplace].map((l: string, i: number) => i === idx ? value : l),
+        }));
+    };
+
+    const handleAddLink = (marketplace: string) => {
+        setLinks((prev: Record<string, string[]>) => ({
+            ...prev,
+            [marketplace]: [...prev[marketplace], ''],
+        }));
+    };
+
+    const handleRemoveLink = (marketplace: string, idx: number) => {
+        setLinks((prev: Record<string, string[]>) => ({
+            ...prev,
+            [marketplace]: prev[marketplace].filter((_: string, i: number) => i !== idx),
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         await createProduct({
@@ -58,10 +90,13 @@ const ProductForm = () => {
             categoria_id: formData.categoryId,
             imagem_url: formData.image,
             links: {
-                mercado_livre: formData.mercadoLivreLink,
-                amazon: formData.amazonLink,
-                magalu: formData.magazineLuizaLink,
+                mercado_livre: links.mercado_livre.filter(l => l.trim()),
+                amazon: links.amazon.filter(l => l.trim()),
+                magalu: links.magalu.filter(l => l.trim()),
+                shopee: links.shopee.filter(l => l.trim()),
             },
+            marca: formData.marca,
+            subcategoria: formData.subcategoria,
         });
         navigate('/');
     };
@@ -157,57 +192,31 @@ const ProductForm = () => {
                             </Typography>
                         </Grid>
 
-                        <Grid item xs={12}>
-                            <TextField
-                                required
-                                fullWidth
-                                label="Link Mercado Livre"
-                                name="mercadoLivreLink"
-                                value={formData.mercadoLivreLink}
-                                onChange={handleChange}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        '&:hover fieldset': {
-                                            borderColor: 'primary.main',
-                                        },
-                                    },
-                                }}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                required
-                                fullWidth
-                                label="Link Amazon"
-                                name="amazonLink"
-                                value={formData.amazonLink}
-                                onChange={handleChange}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        '&:hover fieldset': {
-                                            borderColor: 'primary.main',
-                                        },
-                                    },
-                                }}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                required
-                                fullWidth
-                                label="Link Magazine Luiza"
-                                name="magazineLuizaLink"
-                                value={formData.magazineLuizaLink}
-                                onChange={handleChange}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        '&:hover fieldset': {
-                                            borderColor: 'primary.main',
-                                        },
-                                    },
-                                }}
-                            />
-                        </Grid>
+                        {[
+                            { key: 'mercado_livre', label: 'Mercado Livre' },
+                            { key: 'amazon', label: 'Amazon' },
+                            { key: 'magalu', label: 'Magazine Luiza' },
+                            { key: 'shopee', label: 'Shopee' },
+                        ].map(mkt => (
+                            <Grid item xs={12} key={mkt.key}>
+                                <Typography fontWeight={600} sx={{ mb: 1 }}>{mkt.label}</Typography>
+                                {links[mkt.key].map((link: string, idx: number) => (
+                                    <Box key={idx} display="flex" alignItems="center" gap={1} mb={1}>
+                                        <TextField
+                                            fullWidth
+                                            label={`Link ${idx + 1}`}
+                                            value={link}
+                                            onChange={e => handleLinkChange(mkt.key, idx, e.target.value)}
+                                        />
+                                        <IconButton onClick={() => handleRemoveLink(mkt.key, idx)} disabled={links[mkt.key].length === 1}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </Box>
+                                ))}
+                                <Button onClick={() => handleAddLink(mkt.key)} size="small" variant="outlined">Adicionar link</Button>
+                            </Grid>
+                        ))}
+
                         <Grid item xs={12}>
                             <Button
                                 variant="contained"
@@ -227,6 +236,28 @@ const ProductForm = () => {
                                     <img src={formData.image} alt="Pré-visualização" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 8 }} />
                                 </Box>
                             )}
+                        </Grid>
+                        <Grid item xs={12}>
+                            <FormControl fullWidth margin="normal">
+                                <TextField
+                                    label="Marca"
+                                    value={formData.marca || ''}
+                                    onChange={handleChange}
+                                    name="marca"
+                                    variant="outlined"
+                                />
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <FormControl fullWidth margin="normal">
+                                <TextField
+                                    label="Subcategoria"
+                                    value={formData.subcategoria || ''}
+                                    onChange={handleChange}
+                                    name="subcategoria"
+                                    variant="outlined"
+                                />
+                            </FormControl>
                         </Grid>
                         <Grid item xs={12}>
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>

@@ -4,6 +4,7 @@ import cors from 'cors';
 import { ScraperManager } from './ScraperManager';
 import productRoutes from './routes/productRoutes';
 import categoryRoutes from './routes/categoryRoutes';
+import { swaggerUi, swaggerSpec } from './swagger';
 
 const app = express();
 const port = 4000;
@@ -16,6 +17,8 @@ app.use('/api/products', productRoutes);
 
 // Rotas de categorias
 app.use('/api/categories', categoryRoutes);
+
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const scraperManager = new ScraperManager();
 

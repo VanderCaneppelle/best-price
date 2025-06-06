@@ -4,42 +4,136 @@ import { ScraperManager } from '../ScraperManager';
 
 const scraperManager = new ScraperManager();
 
-// Listar todos os produtos com links
+/**
+ * @swagger
+ * /products:
+ *   get:
+ *     summary: Lista todos os produtos
+ *     responses:
+ *       200:
+ *         description: Lista de produtos
+ */
+// Listar todos os produtos com todos os links agrupados por marketplace
 export async function getAllProducts(req: Request, res: Response) {
     // Busca produtos
     const { data: products, error } = await supabase.from('products').select('*');
     if (error) return res.status(500).json({ error: error.message });
-    // Busca todos os links
+
+    // Busca todos os links com seus preços
     const { data: linksData } = await supabase.from('marketplace_links').select('*');
-    // Agrupa links por produto
+
+    // Agrupa links por produto e marketplace, incluindo preços
     const productsWithLinks = products.map((product: any) => {
-        const links = {} as Record<string, string>;
+        const links: Record<string, { url: string, price: number | null }[]> = {};
+        const lowestPrices: Record<string, number | null> = {
+            mercado_livre: null,
+            amazon: null,
+            magalu: null,
+            shopee: null
+        };
+
         linksData?.filter(l => l.product_id === product.id).forEach(l => {
-            // padroniza nome para frontend
-            if (l.marketplace === 'mercado_livre') links.mercadoLivre = l.url;
-            if (l.marketplace === 'amazon') links.amazon = l.url;
-            if (l.marketplace === 'magalu' || l.marketplace === 'magazine_luiza') links.magazineLuiza = l.url;
+            const key =
+                l.marketplace === 'mercado_livre' ? 'mercado_livre' :
+                    l.marketplace === 'amazon' ? 'amazon' :
+                        (l.marketplace === 'magalu' || l.marketplace === 'magazine_luiza') ? 'magalu' :
+                            l.marketplace;
+
+            if (!links[key]) links[key] = [];
+            links[key].push({ url: l.url, price: l.price });
+
+            // Atualiza o menor preço do marketplace
+            if (l.price !== null) {
+                if (lowestPrices[key] === null || l.price < lowestPrices[key]!) {
+                    lowestPrices[key] = l.price;
+                }
+            }
         });
-        return { ...product, links };
+
+        return {
+            ...product,
+            links,
+            lowest_prices: lowestPrices
+        };
     });
+
     res.json(productsWithLinks);
 }
 
-// Buscar produto por ID (com links)
+/**
+ * @swagger
+ * /products/{id}:
+ *   get:
+ *     summary: Busca um produto por ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do produto
+ *     responses:
+ *       200:
+ *         description: Produto encontrado
+ *       404:
+ *         description: Produto não encontrado
+ */
+// Buscar produto por ID (com todos os links agrupados por marketplace)
 export async function getProductById(req: Request, res: Response) {
     const { id } = req.params;
     const { data: product, error } = await supabase.from('products').select('*').eq('id', id).single();
     if (error) return res.status(404).json({ error: error.message });
+
     const { data: linksData } = await supabase.from('marketplace_links').select('*').eq('product_id', id);
-    const links = {} as Record<string, string>;
+
+    const links: Record<string, { url: string, price: number | null }[]> = {};
+    const lowestPrices: Record<string, number | null> = {
+        mercado_livre: null,
+        amazon: null,
+        magalu: null,
+        shopee: null
+    };
+
     linksData?.forEach(l => {
-        if (l.marketplace === 'mercado_livre') links.mercadoLivre = l.url;
-        if (l.marketplace === 'amazon') links.amazon = l.url;
-        if (l.marketplace === 'magalu' || l.marketplace === 'magazine_luiza') links.magazineLuiza = l.url;
+        const key =
+            l.marketplace === 'mercado_livre' ? 'mercado_livre' :
+                l.marketplace === 'amazon' ? 'amazon' :
+                    (l.marketplace === 'magalu' || l.marketplace === 'magazine_luiza') ? 'magalu' :
+                        l.marketplace;
+
+        if (!links[key]) links[key] = [];
+        links[key].push({ url: l.url, price: l.price });
+
+        // Atualiza o menor preço do marketplace
+        if (l.price !== null) {
+            if (lowestPrices[key] === null || l.price < lowestPrices[key]!) {
+                lowestPrices[key] = l.price;
+            }
+        }
     });
-    res.json({ ...product, links });
+
+    res.json({
+        ...product,
+        links,
+        lowest_prices: lowestPrices
+    });
 }
 
+/**
+ * @swagger
+ * /products:
+ *   post:
+ *     summary: Cria um novo produto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: Produto criado
+ */
 // Criar produto e marketplace_links
 export async function createProduct(req: Request, res: Response) {
     const { nome, descricao, categoria_id, imagem_url, links } = req.body;
@@ -47,13 +141,44 @@ export async function createProduct(req: Request, res: Response) {
     if (error) return res.status(400).json({ error: error.message });
     // Salva os links
     if (links && product?.id) {
-        const linksArray = Object.entries(links)
-            .filter(([_, url]) => url)
-            .map(([marketplace, url]) => ({
-                product_id: product.id,
-                marketplace,
-                url,
-            }));
+        const linksArray: { product_id: string, marketplace: string, url: string, created_at: string }[] = [];
+        const now = new Date().toISOString();
+        Object.entries(links).forEach(([marketplace, urls]) => {
+            if (Array.isArray(urls)) {
+                urls.forEach((url) => {
+                    if (typeof url === 'string') {
+                        // Remove colchetes/aspas extras se vierem por erro
+                        let cleanUrl = url.trim();
+                        if (cleanUrl.startsWith('[') && cleanUrl.endsWith(']')) {
+                            try {
+                                const arr = JSON.parse(cleanUrl);
+                                if (Array.isArray(arr) && arr.length > 0) cleanUrl = arr[0];
+                            } catch { }
+                        }
+                        linksArray.push({
+                            product_id: product.id,
+                            marketplace,
+                            url: cleanUrl,
+                            created_at: now
+                        });
+                    }
+                });
+            } else if (typeof urls === 'string') {
+                let cleanUrl = urls.trim();
+                if (cleanUrl.startsWith('[') && cleanUrl.endsWith(']')) {
+                    try {
+                        const arr = JSON.parse(cleanUrl);
+                        if (Array.isArray(arr) && arr.length > 0) cleanUrl = arr[0];
+                    } catch { }
+                }
+                linksArray.push({
+                    product_id: product.id,
+                    marketplace,
+                    url: cleanUrl,
+                    created_at: now
+                });
+            }
+        });
         if (linksArray.length > 0) {
             await supabase.from('marketplace_links').insert(linksArray);
         }
@@ -61,6 +186,30 @@ export async function createProduct(req: Request, res: Response) {
     res.status(201).json(product);
 }
 
+/**
+ * @swagger
+ * /products/{id}:
+ *   put:
+ *     summary: Atualiza um produto
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do produto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Produto atualizado
+ *       404:
+ *         description: Produto não encontrado
+ */
 // Atualizar produto
 export async function updateProduct(req: Request, res: Response) {
     const { id } = req.params;
@@ -70,6 +219,24 @@ export async function updateProduct(req: Request, res: Response) {
     res.json(data);
 }
 
+/**
+ * @swagger
+ * /products/{id}:
+ *   delete:
+ *     summary: Deleta um produto
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do produto
+ *     responses:
+ *       204:
+ *         description: Produto deletado
+ *       404:
+ *         description: Produto não encontrado
+ */
 // Deletar produto
 export async function deleteProduct(req: Request, res: Response) {
     const { id } = req.params;
@@ -78,6 +245,24 @@ export async function deleteProduct(req: Request, res: Response) {
     res.status(204).send();
 }
 
+/**
+ * @swagger
+ * /products/{id}/update-prices:
+ *   put:
+ *     summary: Atualiza os preços do produto (scraping)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do produto
+ *     responses:
+ *       200:
+ *         description: Preços atualizados
+ *       404:
+ *         description: Produto não encontrado
+ */
 // Atualizar preços de todos os marketplaces de um produto
 export async function updateProductPrices(req: Request, res: Response) {
     const { id } = req.params;
@@ -85,27 +270,50 @@ export async function updateProductPrices(req: Request, res: Response) {
     const { data: product, error } = await supabase.from('products').select('*').eq('id', id).single();
     if (error || !product) return res.status(404).json({ error: 'Produto não encontrado' });
     const { data: linksData } = await supabase.from('marketplace_links').select('*').eq('product_id', id);
-    // Monta objeto de links
-    const links: Record<string, string> = {};
-    linksData?.forEach(l => {
-        if (l.marketplace === 'mercado_livre') links.mercadoLivre = l.url;
-        if (l.marketplace === 'amazon') links.amazon = l.url;
-        if (l.marketplace === 'magalu' || l.marketplace === 'magazine_luiza') links.magazineLuiza = l.url;
-        if (l.marketplace === 'shopee') links.shopee = l.url;
+    if (!linksData || linksData.length === 0) return res.status(404).json({ error: 'Nenhum link encontrado para este produto.' });
+
+    // Para cada link, roda o scraper e atualiza o campo price
+    const updatedLinks = [];
+    const now = new Date().toISOString();
+    for (const link of linksData) {
+        try {
+            const result = await scraperManager.scrapePrice(link.url);
+            await supabase.from('marketplace_links')
+                .update({
+                    price: result.price,
+                    created_at: now
+                })
+                .eq('id', link.id);
+            updatedLinks.push({ ...link, price: result.price, created_at: now });
+        } catch (err) {
+            updatedLinks.push({ ...link, price: null, error: 'Erro ao buscar preço', created_at: now });
+        }
+    }
+
+    // Monta objeto agrupado por marketplace para resposta
+    const links: Record<string, { url: string, price: number | null, created_at: string }[]> = {};
+    updatedLinks.forEach(l => {
+        const key =
+            l.marketplace === 'mercado_livre' ? 'mercado_livre' :
+                l.marketplace === 'amazon' ? 'amazon' :
+                    (l.marketplace === 'magalu' || l.marketplace === 'magazine_luiza') ? 'magalu' :
+                        l.marketplace;
+        if (!links[key]) links[key] = [];
+        links[key].push({ url: l.url, price: l.price, created_at: l.created_at });
     });
-    // Roda scrapers
-    const prices = await scraperManager.scrapeAllMarkets(links);
-    // Atualiza produto no banco
-    const { data: updated, error: updateError } = await supabase.from('products').update({
-        preco_mercado_livre: prices.mercadoLivre,
-        preco_amazon: prices.amazon,
-        preco_magalu: prices.magazineLuiza,
-        preco_shopee: prices.shopee,
-    }).eq('id', id).select().single();
-    if (updateError) return res.status(500).json({ error: updateError.message });
-    res.json({ ...updated, links });
+
+    res.json({ ...product, links });
 }
 
+/**
+ * @swagger
+ * /products/price-history/snapshot:
+ *   post:
+ *     summary: Cria um snapshot de histórico de preços de todos os produtos
+ *     responses:
+ *       200:
+ *         description: Snapshot criado
+ */
 // Criar snapshot de histórico de preços de todos os produtos (um registro por marketplace por dia)
 export async function createPriceHistorySnapshot(req: Request, res: Response) {
     // Busca todos os produtos
@@ -169,6 +377,27 @@ export async function createPriceHistorySnapshot(req: Request, res: Response) {
     res.json({ message: 'Histórico de preços salvo/atualizado com sucesso', inserts, updates });
 }
 
+/**
+ * @swagger
+ * /products/{id}/price-history:
+ *   get:
+ *     summary: Busca o histórico de preços de um produto
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do produto
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *         description: Número de dias para buscar
+ *     responses:
+ *       200:
+ *         description: Histórico de preços
+ */
 // Buscar histórico de preços dos últimos X dias para um produto
 export async function getProductPriceHistory(req: Request, res: Response) {
     const { id } = req.params;

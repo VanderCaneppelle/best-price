@@ -16,10 +16,11 @@ export class PriceService {
     async updateProductPrices(product: Product): Promise<Product> {
         try {
             const urls = [
-                product.links?.mercadoLivre,
-                product.links?.amazon,
-                product.links?.magazineLuiza,
-            ].filter(Boolean) as string[];
+                ...(product.links?.mercado_livre ?? []),
+                ...(product.links?.amazon ?? []),
+                ...(product.links?.magalu ?? []),
+                ...(product.links?.shopee ?? []),
+            ];
 
             // const results = await this.scraperManager.scrapeMultiplePrices(urls);
 

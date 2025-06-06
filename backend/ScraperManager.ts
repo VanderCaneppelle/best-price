@@ -41,20 +41,25 @@ export class ScraperManager {
     }
 
     /**
-     * Roda todos os scrapers para os links informados e retorna um objeto com os preços encontrados.
-     * @param links objeto { mercadoLivre, amazon, magazineLuiza, shopee }
+     * Roda todos os scrapers para os links informados (array por marketplace) e retorna o menor preço encontrado para cada marketplace.
+     * @param links objeto { mercado_livre: string[], amazon: string[], magalu: string[], shopee: string[] }
      */
-    async scrapeAllMarkets(links: Record<string, string>): Promise<Record<string, number | null>> {
+    async scrapeAllMarkets(links: Record<string, string[]>): Promise<Record<string, number | null>> {
         const results: Record<string, number | null> = {
-            mercadoLivre: null,
+            mercado_livre: null,
             amazon: null,
-            magazineLuiza: null,
+            magalu: null,
             shopee: null,
         };
-        for (const [market, url] of Object.entries(links)) {
-            if (url) {
-                const result = await this.scrapePrice(url);
-                results[market] = result.price || null;
+        for (const [market, urls] of Object.entries(links)) {
+            if (Array.isArray(urls) && urls.length > 0) {
+                const prices: number[] = [];
+                for (const url of urls) {
+                    if (typeof url !== 'string' || !url.startsWith('http')) continue; // ignora valores inválidos
+                    const result = await this.scrapePrice(url);
+                    if (result.price && result.price > 0) prices.push(result.price);
+                }
+                results[market] = prices.length > 0 ? Math.min(...prices) : null;
             }
         }
         return results;

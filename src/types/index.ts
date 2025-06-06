@@ -16,11 +16,13 @@ export interface Product {
         magazineLuiza?: number;
     };
     links?: {
-        mercadoLivre?: string;
-        amazon?: string;
-        magazineLuiza?: string;
-        shopee?: string;
+        mercado_livre?: { url: string, price: number | null }[];
+        amazon?: { url: string, price: number | null }[];
+        magalu?: { url: string, price: number | null }[];
+        shopee?: { url: string, price: number | null }[];
+        [key: string]: { url: string, price: number | null }[] | undefined;
     };
+    lowest_prices?: Record<string, number | null>;
     name?: string;
     description?: string;
     image?: string;
@@ -29,6 +31,8 @@ export interface Product {
     preco_amazon?: number;
     preco_magalu?: number;
     preco_shopee?: number;
+    marca?: string;
+    subcategoria?: string;
 }
 
 export interface ProductFormData {
